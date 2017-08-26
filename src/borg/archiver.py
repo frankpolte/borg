@@ -13,6 +13,7 @@ import subprocess
 import sys
 import textwrap
 import traceback
+import json
 from binascii import unhexlify
 from datetime import datetime
 from itertools import zip_longest
@@ -822,35 +823,29 @@ class Archiver:
         #print(args)
         output = {}
         for archive_info in manifest.list_archive_infos(sort_by='ts'):
-            print(80*'#')
-            print("print(archive_info)")
-            print(80*'#')
-            print(archive_info)
             archive = Archive(repository, key, manifest, archive_info.name)
-            #archive.load(id=archive_info.id)
-            # print(80*'#')
-            # print("print(archive)")
-            # print(80*'#')
-            # print(archive)
-            # print(80 * '#')
-            # print("print(archive.metadata 'tam' and 'items'")
-            # print(80 * '#')
-            # print(archive.metadata[b'tam'])
-            # print(archive.metadata[b'items'])
-            print(80 * '#')
-            print('for item in archive.iter_items')
-            print(80 * '#')
-
+            output[str(archive.id)] = {}
+            thisOutput = output[str(archive.id)]
+            thisOutput['file2chunks'] = {}
+            thisOutput['chunk2files'] = {}
             for item in archive.iter_items(preload=True):
                 itemdict = item._dict
                 #print(itemdict.keys())
                 if 'chunks' not in itemdict.keys():
                     pass
-                    print(item)
+                    #print(item)
                 else:
                     pass
-                    print(itemdict)
+                    thisOutput['file2chunks'][str(itemdict['path'])] = [ str(chunk.id) for chunk in itemdict['chunks']]
+                    #print(itemdict['path'])
+                    for chunk in itemdict['chunks']:
+                        if chunk.id not in thisOutput['chunk2files'].keys():
+                            thisOutput['chunk2files'][str(chunk.id)] = [str(itemdict['path'])]
+                        else:
+                            thisOutput['chunk2files'][str(chunk.id)].append(str(itemdict['path']))
+                    #print(itemdict['chunks'][0].id)
 
+        print(json.dumps(output, sort_keys=True, indent=4))
 
         return self.exit_code
 
