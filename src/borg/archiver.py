@@ -807,6 +807,53 @@ class Archiver:
 
         return self.exit_code
 
+
+    @with_repository()
+    def do_stat(self, args, repository, manifest, key):
+        """List archive or repository contents"""
+        if not hasattr(sys.stdout, 'buffer'):
+            # This is a shim for supporting unit tests replacing sys.stdout with e.g. StringIO,
+            # which doesn't have an underlying buffer (= lower file object).
+            def write(bytestring):
+                sys.stdout.write(bytestring.decode('utf-8', errors='replace'))
+        else:
+            write = sys.stdout.buffer.write
+
+        #print(args)
+        output = {}
+        for archive_info in manifest.list_archive_infos(sort_by='ts'):
+            print(80*'#')
+            print("print(archive_info)")
+            print(80*'#')
+            print(archive_info)
+            archive = Archive(repository, key, manifest, archive_info.name)
+            #archive.load(id=archive_info.id)
+            # print(80*'#')
+            # print("print(archive)")
+            # print(80*'#')
+            # print(archive)
+            # print(80 * '#')
+            # print("print(archive.metadata 'tam' and 'items'")
+            # print(80 * '#')
+            # print(archive.metadata[b'tam'])
+            # print(archive.metadata[b'items'])
+            print(80 * '#')
+            print('for item in archive.iter_items')
+            print(80 * '#')
+
+            for item in archive.iter_items(preload=True):
+                itemdict = item._dict
+                #print(itemdict.keys())
+                if 'chunks' not in itemdict.keys():
+                    pass
+                    print(item)
+                else:
+                    pass
+                    print(itemdict)
+
+
+        return self.exit_code
+
     @with_repository(cache=True)
     @with_archive
     def do_info(self, args, repository, manifest, key, archive, cache):
@@ -1757,6 +1804,28 @@ class Archiver:
         memory usage can be up to ~8 MiB times this number. The default is the number
         of CPU cores.
         """)
+        ################################################################################################################
+        subparser = subparsers.add_parser('stat', parents=[common_parser], add_help=False,
+                                          description=self.do_stat.__doc__,
+                                          epilog=list_epilog,
+                                          formatter_class=argparse.RawDescriptionHelpFormatter,
+                                          help='list archive or repository contents')
+        subparser.set_defaults(func=self.do_stat)
+        subparser.add_argument('--short', dest='short',
+                               action='store_true', default=False,
+                               help='do stat with short option')
+        subparser.add_argument('--format', '--list-format', dest='format', type=str,
+                               help="""specify format for file listing
+                                (default: "{mode} {user:6} {group:6} {size:8d} {isomtime} {path}{extra}{NL}")""")
+        subparser.add_argument('location', metavar='REPOSITORY_OR_ARCHIVE', nargs='?', default='',
+                               type=location_validator(),
+                               help='repository/archive to list contents of')
+        subparser.add_argument('paths', metavar='PATH', nargs='*', type=str,
+                               help='paths to list; patterns are supported')
+        mount_epilog = textwrap.dedent("""
+                stat help text
+                """)
+        ################################################################################################################
         subparser = subparsers.add_parser('mount', parents=[common_parser], add_help=False,
                                           description=self.do_mount.__doc__,
                                           epilog=mount_epilog,
