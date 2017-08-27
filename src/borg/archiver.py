@@ -873,39 +873,33 @@ class Archiver:
             tempcounter = 0
             self.chunkCheckRuntime = 0
             self.chunkCheckCounter = 0
+            self.itemdictpulltime = 0
             for item in archive.iter_items(preload=True):
                 tempcounter += 1
                 if tempcounter % 10000 == 0:
                     profilerfp.write((80 * "#") + "\n")
                     profilerfp.write("Profiling data inside the for loop over items:\n")
-                    profilerfp.write("self.id2indexruntime: " + str(self.id2indexruntime) + "\nself.id2indexcounter: " + str(self.id2indexcounter) + "\n")
+                    profilerfp.write("self.itemdictpulltime: " + str(self.itemdictpulltime)  + "\nself.id2indexruntime: " + str(self.id2indexruntime) + "\nself.id2indexcounter: " + str(self.id2indexcounter) + "\n")
                     profilerfp.write((80 * "#") + "\n")
 
+                itemdictpullstart = time.time()
                 itemdict = item._dict
-                #print(itemdict.keys())
-                if 'chunks' not in itemdict.keys():
-                    pass
-                    #print(itemdict)
-                    thisOutput['nonChunkItems'][str(itemdict['path'])] = str(itemdict)
-                else:
-                    pass
+                self.itemdictpulltime += time.time() - itemdictpullstart
+                try:
                     thisOutput['file2chunkIndexes'][str(itemdict['path'])] = [ id2index(chunk.id) for chunk in itemdict['chunks']]
-                    #print(itemdict['path'])
                     chunkcheckstart = time.time()
                     for chunk in itemdict['chunks']:
                         self.chunkCheckCounter += 1
                         if self.chunkCheckCounter % 1000 == 0:
                             profilerfp.write("self.chunkCheckCounter: " + str(self.chunkCheckCounter) + "\nself.chunkCheckRuntime: " + str(self.chunkCheckRuntime) + "\n")
-                        # if id2index(chunk.id) not in output['chunkIndex2files'].keys():
-                        #     output['chunkIndex2files'][id2index(chunk.id)] = {str(archive.name): str(itemdict['path'])}
-                        # else:
-                        #     output['chunkIndex2files'][id2index(chunk.id)][str(archive.name)] = str(itemdict['path'])
                         try:
                             output['chunkIndex2files'][id2index(chunk.id)][str(archive.name)] = str(itemdict['path'])
                         except:
                             output['chunkIndex2files'][id2index(chunk.id)] = {str(archive.name): str(itemdict['path'])}
                         self.chunkCheckRuntime += time.time() - chunkcheckstart
                     #print(itemdict['chunks'][0].id)
+                except:
+                    thisOutput['nonChunkItems'][str(itemdict['path'])] = str(itemdict)
 
         print(json.dumps(output, indent=4))
         sys.stderr.write("self.id2indexruntime: " + str(self.id2indexruntime) + " ; self.id2indexcounter: " + str(self.id2indexcounter) + "\n")
