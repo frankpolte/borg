@@ -809,34 +809,18 @@ class Archiver:
         return self.exit_code
 
 
-    @with_repository()
+    @with_repository(lock=False)
     def do_stat(self, args, repository, manifest, key):
         """Return stat of repository content in json"""
         idIndex = []
         idIndexDict = {}
-        ##
-        self.id2indexcounter = 0
-        self.id2indexruntime = 0
-        import time
-        profilerfp = open("/tmp/borgstat-profiler", "w")
-        ##
         def id2index(id):
-            ##
-            self.id2indexcounter += 1
-            id2indexstart = time.time()
-            ##
             id = str(id)
             if id in idIndexDict.keys():
-                #
-                self.id2indexruntime += time.time() - id2indexstart
-                #
                 return idIndexDict[id]
             else:
                 idIndex.append(id)
                 idIndexDict[id] = len(idIndex) - 1
-                ##
-                self.id2indexruntime += time.time() - id2indexstart
-                ##
                 return len(idIndex) - 1
 
         def index2id(index):
@@ -854,56 +838,32 @@ class Archiver:
         else:
             write = sys.stdout.buffer.write
 
-        #print(args)
         output = {}
         output['idIndex'] = idIndex
         output['archiveIndex'] = {}
         output['archives'] = {}
         output['chunkIndex2files'] = {}
-        profilerfp.write("begin with the first archive: \n")
         for archive_info in manifest.list_archive_infos(sort_by='ts'):
             archive = Archive(repository, key, manifest, archive_info.name)
-            profilerfp.write("The active archive is: " + str(archive_info) + "\n")
             output['archives'][str(archive.name)] = {}
             output['archiveIndex'][str(archive.name)] = str(archive_info)
             thisOutput = output['archives'][str(archive.name)]
             thisOutput['index2chunks'] = {}
             thisOutput['file2chunkIndexes'] = {}
             thisOutput['nonChunkItems'] = {}
-            tempcounter = 0
-            self.chunkCheckRuntime = 0
-            self.chunkCheckCounter = 0
-            self.itemdictpulltime = 0
             for item in archive.iter_items(preload=True):
-                tempcounter += 1
-                if tempcounter % 10000 == 0:
-                    profilerfp.write((80 * "#") + "\n")
-                    profilerfp.write("Profiling data inside the for loop over items:\n")
-                    profilerfp.write("self.itemdictpulltime: " + str(self.itemdictpulltime)  + "\nself.id2indexruntime: " + str(self.id2indexruntime) + "\nself.id2indexcounter: " + str(self.id2indexcounter) + "\n")
-                    profilerfp.write((80 * "#") + "\n")
-
-                itemdictpullstart = time.time()
                 itemdict = item._dict
-                self.itemdictpulltime += time.time() - itemdictpullstart
                 try:
                     thisOutput['file2chunkIndexes'][str(itemdict['path'])] = [ id2index(chunk.id) for chunk in itemdict['chunks']]
-                    chunkcheckstart = time.time()
                     for chunk in itemdict['chunks']:
-                        self.chunkCheckCounter += 1
-                        if self.chunkCheckCounter % 1000 == 0:
-                            profilerfp.write("self.chunkCheckCounter: " + str(self.chunkCheckCounter) + "\nself.chunkCheckRuntime: " + str(self.chunkCheckRuntime) + "\n")
                         try:
                             output['chunkIndex2files'][id2index(chunk.id)][str(archive.name)] = str(itemdict['path'])
                         except:
                             output['chunkIndex2files'][id2index(chunk.id)] = {str(archive.name): str(itemdict['path'])}
-                        self.chunkCheckRuntime += time.time() - chunkcheckstart
-                    #print(itemdict['chunks'][0].id)
                 except:
                     thisOutput['nonChunkItems'][str(itemdict['path'])] = str(itemdict)
 
         print(json.dumps(output, indent=4))
-        sys.stderr.write("self.id2indexruntime: " + str(self.id2indexruntime) + " ; self.id2indexcounter: " + str(self.id2indexcounter) + "\n")
-
         return self.exit_code
 
     @with_repository(cache=True)
